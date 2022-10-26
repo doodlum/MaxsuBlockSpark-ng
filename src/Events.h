@@ -16,13 +16,13 @@ namespace MaxsuBlockSpark
 			auto ScriptEventSource = RE::ScriptEventSourceHolder::GetSingleton();
 
 			if (!ScriptEventSource) {
-				ERROR("ScriptEventSource not found!");
+				logger::error("ScriptEventSource not found!");
 				return false;
 			}
 			
 			ScriptEventSource->AddEventSink(&g_hiteventhandler);
 
-			INFO("Register OnHit Event Handler!");
+			logger::info("Register OnHit Event Handler!");
 
 			return true;
 		}

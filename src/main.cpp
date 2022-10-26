@@ -1,78 +1,48 @@
+
 #include "LoadGame.h"
 
-#if ANNIVERSARY_EDITION
-
-extern "C" DLLEXPORT constinit auto SKSEPlugin_Version = []()
+void Init()
 {
-	SKSE::PluginVersionData data{};
-
-	data.PluginVersion(Version::MAJOR);
-	data.PluginName(Version::NAME);
-	data.AuthorName("Maxsu"sv);
-
-	data.CompatibleVersions({ SKSE::RUNTIME_LATEST });
-	data.UsesAddressLibrary(true);
-
-	return data;
-}();
-
-#else
-
-extern "C" DLLEXPORT bool SKSEAPI SKSEPlugin_Query(const SKSE::QueryInterface* a_skse, SKSE::PluginInfo* a_info)
-{
-	DKUtil::Logger::Init(Version::PROJECT, Version::NAME);
-
-	a_info->infoVersion = SKSE::PluginInfo::kVersion;
-	a_info->name = Version::PROJECT.data();
-	a_info->version = Version::MAJOR;
-
-	if (a_skse->IsEditor()) {
-		ERROR("Loaded in editor, marking as incompatible"sv);
-		return false;
+	auto g_message = SKSE::GetMessagingInterface();
+	if (!g_message) {
+		logger::error("Messaging Interface Not Found!");
 	}
 
-	const auto ver = a_skse->RuntimeVersion();
-	if (ver < SKSE::RUNTIME_1_5_39) {
-		ERROR("Unable to load this plugin, incompatible runtime version!\nExpected: Newer than 1-5-39-0 (A.K.A Special Edition)\nDetected: {}", ver.string());
-		return false;
-	}
+	g_message->RegisterListener(MaxsuBlockSpark::EventCallback);
+}
+
+
+EXTERN_C [[maybe_unused]] __declspec(dllexport) bool SKSEAPI SKSEPlugin_Load(const SKSE::LoadInterface* a_skse)
+{
+#ifndef NDEBUG
+	while (!IsDebuggerPresent()) {};
+#endif
+
+	DKUtil::Logger::Init(Plugin::NAME, REL::Module::get().version().string());
+
+	logger::info("Loaded plugin");
+
+	SKSE::Init(a_skse);
+
+	Init();
 
 	return true;
 }
 
-#endif
+EXTERN_C [[maybe_unused]] __declspec(dllexport) constinit auto SKSEPlugin_Version = []() noexcept {
+	SKSE::PluginVersionData data;
+	data.PluginVersion(Plugin::Version);
+	data.PluginName(Plugin::NAME);
+	data.AuthorName(Plugin::AUTHOR);
+	data.UsesAddressLibrary(true);
+	data.HasNoStructUse(true);
+	return data;
+}();
 
-
-extern "C" DLLEXPORT bool SKSEAPI SKSEPlugin_Load(const SKSE::LoadInterface* a_skse)
+EXTERN_C [[maybe_unused]] __declspec(dllexport) bool SKSEAPI SKSEPlugin_Query(const SKSE::QueryInterface*, SKSE::PluginInfo* pluginInfo)
 {
-#if ANNIVERSARY_EDITION
-
-	DKUtil::Logger::Init(Version::PROJECT, Version::NAME);
-
-	if (REL::Module::get().version() < SKSE::RUNTIME_1_6_317) {
-		ERROR("Unable to load this plugin, incompatible runtime version!\nExpected: Newer than 1-6-317-0 (A.K.A Anniversary Edition)\nDetected: {}", REL::Module::get().version().string());
-		return false;
-	}
-
-#endif
-
-#ifndef NDEBUG
-	while (!IsDebuggerPresent()) {
-		Sleep(10);
-	}
-#endif
-
-	INFO("{} v{} loaded", Version::PROJECT, Version::NAME);
-
-	SKSE::Init(a_skse);
-
-	auto g_message = SKSE::GetMessagingInterface();
-	if (!g_message) {
-		ERROR("Messaging Interface Not Found!");
-		return false;
-	}
-
-	g_message->RegisterListener(MaxsuBlockSpark::EventCallback);
-
+	pluginInfo->name = SKSEPlugin_Version.pluginName;
+	pluginInfo->infoVersion = SKSE::PluginInfo::kVersion;
+	pluginInfo->version = SKSEPlugin_Version.pluginVersion;
 	return true;
 }

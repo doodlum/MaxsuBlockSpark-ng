@@ -2,6 +2,14 @@
 #include "Functions.h"
 #include "DataHandler.h"
 
+
+RE::BSTempEffectParticle* TESObjectCELL_PlaceParticleEffect(RE::TESObjectCELL* a_cell, float a_lifetime, const char* a_modelName, const RE::NiMatrix3& a_normal, const RE::NiPoint3& a_pos, float a_scale, std::uint32_t a_flags, RE::NiAVObject* a_target)
+{
+	using func_t = decltype(&TESObjectCELL_PlaceParticleEffect);
+	REL::Relocation<func_t> func{ REL::RelocationID(29219, 30072) };
+	return func(a_cell, a_lifetime, a_modelName, a_normal, a_pos, a_scale, a_flags, a_target);
+}
+
 namespace MaxsuBlockSpark
 {
 
@@ -19,16 +27,16 @@ namespace MaxsuBlockSpark
 		if (a_event->flags.any(HitFlag::kHitBlocked) && a_event->target) {
 			auto defender = a_event->target->As<RE::Actor>();
 			auto attackWeapon = RE::TESForm::LookupByID<RE::TESObjectWEAP>(a_event->source);
-			if (!defender || !attackWeapon || !defender->currentProcess || !defender->currentProcess->high || !attackWeapon->IsMelee() || attackWeapon->IsHandToHandMelee() || !defender->Get3D())
+			if (!defender || !attackWeapon || !defender->GetActorRuntimeData().currentProcess || !defender->GetActorRuntimeData().currentProcess->high || !attackWeapon->IsMelee() || attackWeapon->IsHandToHandMelee() || !defender->Get3D())
 				return EventResult::kContinue;
 
 			auto attacker = a_event->cause ? a_event->cause->As<RE::Actor>(): nullptr;
-			if (!attacker || !attacker->currentProcess || !attacker->currentProcess->high) {
+			if (!attacker || !attacker->GetActorRuntimeData().currentProcess || !attacker->GetActorRuntimeData().currentProcess->high) {
 				logger::debug("Attack Actor Not Found!");
 				return EventResult::kContinue;
 			}
 
-			auto attackerData = attacker->currentProcess->high->attackData;
+			auto attackerData = attacker->GetActorRuntimeData().currentProcess->high->attackData;
 			if (!attackerData) {
 				logger::debug("Attacker Attack Data Not Found!");
 				return EventResult::kContinue;
@@ -66,13 +74,13 @@ namespace MaxsuBlockSpark
 			};
 
 			RE::BIPED_OBJECT BipeObjIndex;
-			auto defenderLeftEquipped = defender->currentProcess->GetEquippedLeftHand();
-			auto defenderData = defender->currentProcess->high->attackData;
+			auto defenderLeftEquipped = defender->GetActorRuntimeData().currentProcess->GetEquippedLeftHand();
+			auto defenderData = defender->GetActorRuntimeData().currentProcess->high->attackData;
 			
 			if (defenderData)	//To compatible with "Simple Weapon Swing Parry" while attacking.
-				BipeObjIndex = defenderData->IsLeftAttack() && defenderLeftEquipped ? GetBipeObjIndex(defenderLeftEquipped, false) : GetBipeObjIndex(defender->currentProcess->GetEquippedRightHand(), true);
+				BipeObjIndex = defenderData->IsLeftAttack() && defenderLeftEquipped ? GetBipeObjIndex(defenderLeftEquipped, false) : GetBipeObjIndex(defender->GetActorRuntimeData().currentProcess->GetEquippedRightHand(), true);
 			else 
-				BipeObjIndex = defenderLeftEquipped && (defenderLeftEquipped->IsWeapon() || defenderLeftEquipped->IsArmor()) ? GetBipeObjIndex(defenderLeftEquipped, false) : GetBipeObjIndex(defender->currentProcess->GetEquippedRightHand(), true);
+				BipeObjIndex = defenderLeftEquipped && (defenderLeftEquipped->IsWeapon() || defenderLeftEquipped->IsArmor()) ? GetBipeObjIndex(defenderLeftEquipped, false) : GetBipeObjIndex(defender->GetActorRuntimeData().currentProcess->GetEquippedRightHand(), true);
 
 			if (BipeObjIndex == RE::BIPED_OBJECT::kNone) {
 				logger::debug("BipeObj Not Found!");
@@ -100,13 +108,16 @@ namespace MaxsuBlockSpark
 				sparkPos = defenderNode->worldBound.center;
 				logger::debug("Get Weapon Spark Position!");
 			}
+			std::random_device rd; // obtain a random number from hardware
+			std::mt19937 gen(rd()); // seed the generator
+			std::uniform_int_distribution<> distrib(1, 100); // define the range
 
-			if (Random::get<std::uint32_t>(1, 100) > DataHandler::GetSingleton()->settings->triggerChance) {
+			if (distrib(gen) > DataHandler::GetSingleton()->settings->triggerChance) {
 				logger::debug("Spark Random Chance Not Enough!");
 				return EventResult::kContinue;
 			}
 
-			if (cell->PlaceParticleEffect(0.0f, modelName, defenderNode->world.rotate, sparkPos, 1.0f, 4U, defenderNode.get())) {
+			if (TESObjectCELL_PlaceParticleEffect(cell, 0.0f, modelName, defenderNode->world.rotate, sparkPos, 1.0f, 4U, defenderNode.get())) {
 				logger::debug("Play Spark Effect Successfully!");
 				return EventResult::kContinue;
 			}
